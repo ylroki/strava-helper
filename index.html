@@ -170,6 +170,8 @@
   <script>
     // Config — fill these in before deploying
     const CLIENT_ID = 'YOUR_CLIENT_ID';
+    // Note: Strava requires client_secret even with PKCE (unlike the RFC standard).
+    // Keep this file/repo private to protect your credentials.
     const CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
     const REDIRECT_URI = window.location.origin + window.location.pathname;
 
@@ -213,6 +215,10 @@
       document.getElementById('state-upload').classList.toggle('active', name === 'upload');
     }
 
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function renderFiles() {
       const list = document.getElementById('file-list');
       list.innerHTML = files.map((f, i) => {
@@ -224,8 +230,8 @@
         if (f.status === 'duplicate')   statusHtml = f.activityId
           ? `<span class="file-status status-duplicate"><a href="https://www.strava.com/activities/${f.activityId}" target="_blank">Already uploaded</a></span>`
           : `<span class="file-status status-duplicate">Already uploaded (duplicate)</span>`;
-        if (f.status === 'error')       statusHtml = `<span class="file-status status-error">${f.message || 'Error'}</span>`;
-        return `<div class="file-item"><span class="file-name" title="${f.file.name}">${f.file.name}</span>${statusHtml}</div>`;
+        if (f.status === 'error')       statusHtml = `<span class="file-status status-error">${esc(f.message) || 'Error'}</span>`;
+        return `<div class="file-item"><span class="file-name" title="${esc(f.file.name)}">${esc(f.file.name)}</span>${statusHtml}</div>`;
       }).join('');
 
       const done = files.filter(f => f.status === 'done' || f.status === 'duplicate').length;
@@ -327,18 +333,18 @@
 
     // --- Upload ---
     async function uploadFile(entry) {
+      if (isDisconnected) return;
       entry.status = 'uploading';
       renderFiles();
 
       try {
         await ensureValidToken();
       } catch {
+        isDisconnected = true;
         clearTokens();
         showState('connect');
-        throw new Error('Session expired');
+        return;
       }
-
-      if (isDisconnected) return;
 
       const form = new FormData();
       form.append('file', entry.file);
