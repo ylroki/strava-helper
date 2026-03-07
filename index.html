@@ -175,6 +175,7 @@
 
     // --- State ---
     let files = []; // Array of { file, status, message, activityId }
+    let isDisconnected = false;
 
     // --- Auth helpers ---
     function getToken() { return localStorage.getItem('strava_access_token'); }
@@ -220,7 +221,9 @@
         if (f.status === 'uploading')   statusHtml = '<span class="file-status status-uploading">Uploading...</span>';
         if (f.status === 'processing')  statusHtml = '<span class="file-status status-processing">Processing...</span>';
         if (f.status === 'done')        statusHtml = `<span class="file-status status-done"><a href="https://www.strava.com/activities/${f.activityId}" target="_blank">Done</a></span>`;
-        if (f.status === 'duplicate')   statusHtml = `<span class="file-status status-duplicate"><a href="https://www.strava.com/activities/${f.activityId}" target="_blank">Already uploaded</a></span>`;
+        if (f.status === 'duplicate')   statusHtml = f.activityId
+          ? `<span class="file-status status-duplicate"><a href="https://www.strava.com/activities/${f.activityId}" target="_blank">Already uploaded</a></span>`
+          : `<span class="file-status status-duplicate">Already uploaded (duplicate)</span>`;
         if (f.status === 'error')       statusHtml = `<span class="file-status status-error">${f.message || 'Error'}</span>`;
         return `<div class="file-item"><span class="file-name" title="${f.file.name}">${f.file.name}</span>${statusHtml}</div>`;
       }).join('');
@@ -314,6 +317,7 @@
     }
 
     function disconnect() {
+      isDisconnected = true;
       clearTokens();
       files = [];
       renderFiles();
@@ -333,6 +337,8 @@
         showState('connect');
         throw new Error('Session expired');
       }
+
+      if (isDisconnected) return;
 
       const form = new FormData();
       form.append('file', entry.file);
@@ -370,6 +376,7 @@
 
       for (let attempts = 0; attempts < 30; attempts++) {
         await new Promise(r => setTimeout(r, 2000));
+        if (isDisconnected) return;
         let pollRes;
         try {
           pollRes = await fetch(`https://www.strava.com/api/v3/uploads/${uploadId}`, {
@@ -441,6 +448,7 @@
       }
 
       if (getToken()) {
+        isDisconnected = false;
         showState('upload');
       } else {
         showState('connect');
@@ -463,8 +471,6 @@
         dropZone.classList.remove('drag-over');
         addFiles(e.dataTransfer.files);
       });
-
-      document.getElementById('btn-upload').addEventListener('click', startUpload);
 
       renderFiles();
       updateUploadButton();
