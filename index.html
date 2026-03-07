@@ -62,7 +62,14 @@
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
     }
-    .connected-label { color: #28a745; font-weight: 600; }
+    .athlete-info { display: flex; align-items: center; gap: 0.6rem; }
+    .athlete-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #fc4c02;
+    }
+    .athlete-name { color: #28a745; font-weight: 600; }
     .btn-link {
       background: none;
       border: none;
@@ -150,7 +157,9 @@
     <!-- State: connected / uploading -->
     <div id="state-upload">
       <div class="header-bar">
-        <span class="connected-label">Connected to Strava</span>
+        <div class="athlete-info" id="athlete-info">
+          <span class="athlete-name">Connected to Strava</span>
+        </div>
         <button class="btn-link" id="btn-disconnect">Disconnect</button>
       </div>
 
@@ -192,9 +201,45 @@
       localStorage.removeItem('strava_access_token');
       localStorage.removeItem('strava_refresh_token');
       localStorage.removeItem('strava_token_expiry');
+      localStorage.removeItem('strava_athlete');
     }
     function isTokenValid() {
       return getToken() && getExpiry() > Math.floor(Date.now() / 1000) + 60;
+    }
+
+    // --- Athlete helpers ---
+    function saveAthlete(athlete) {
+      localStorage.setItem('strava_athlete', JSON.stringify({
+        name: athlete.firstname + ' ' + athlete.lastname,
+        avatar: athlete.profile_medium || athlete.profile,
+      }));
+    }
+    function getAthlete() {
+      try { return JSON.parse(localStorage.getItem('strava_athlete')); } catch { return null; }
+    }
+    function renderAthlete() {
+      const el = document.getElementById('athlete-info');
+      const athlete = getAthlete();
+      if (athlete) {
+        const imgHtml = athlete.avatar && !athlete.avatar.includes('avatar/athlete/large')
+          ? `<img class="athlete-avatar" src="${esc(athlete.avatar)}" alt="${esc(athlete.name)}">`
+          : '';
+        el.innerHTML = `${imgHtml}<span class="athlete-name">${esc(athlete.name)}</span>`;
+      } else {
+        el.innerHTML = `<span class="athlete-name">Connected to Strava</span>`;
+      }
+    }
+    async function fetchAndRenderAthlete() {
+      try {
+        const res = await fetch('https://www.strava.com/api/v3/athlete', {
+          headers: { Authorization: 'Bearer ' + getToken() },
+        });
+        if (res.ok) {
+          const athlete = await res.json();
+          saveAthlete(athlete);
+          renderAthlete();
+        }
+      } catch { /* non-critical, silently ignore */ }
     }
 
     // --- PKCE helpers ---
@@ -298,7 +343,9 @@
         }),
       });
       if (!res.ok) throw new Error('Token exchange failed');
-      saveTokens(await res.json());
+      const data = await res.json();
+      saveTokens(data);
+      if (data.athlete) saveAthlete(data.athlete);
     }
 
     async function refreshToken() {
@@ -456,6 +503,8 @@
       if (getToken()) {
         isDisconnected = false;
         showState('upload');
+        renderAthlete();
+        if (!getAthlete()) fetchAndRenderAthlete();
       } else {
         showState('connect');
       }
