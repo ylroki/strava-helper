@@ -394,8 +394,11 @@
       }
 
       const form = new FormData();
+      const activityDate = new Date(entry.file.lastModified);
+      const name = activityDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
       form.append('file', entry.file);
       form.append('data_type', 'fit');
+      form.append('name', name);
 
       let uploadRes;
       try {
