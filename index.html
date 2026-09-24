@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Strava .fit Uploader</title>
+  <title>Strava Activity Uploader</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -144,8 +144,8 @@
   <div class="card">
     <!-- State: not connected -->
     <div id="state-connect">
-      <h1>Strava .fit Uploader</h1>
-      <p class="subtitle">Upload .fit files from any device directly to your Strava account.</p>
+      <h1>Strava Activity Uploader</h1>
+      <p class="subtitle">Upload .fit, .tcx, and .gpx files from any device directly to your Strava account.</p>
       <button class="btn-strava" id="btn-connect">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
@@ -165,10 +165,10 @@
 
       <div class="drop-zone" id="drop-zone">
         <div class="drop-icon">📂</div>
-        <strong>Drop .fit files here</strong>
+        <strong>Drop .fit / .tcx / .gpx files here</strong>
         <p>or click to select files</p>
       </div>
-      <input type="file" id="file-input" accept=".fit" multiple>
+      <input type="file" id="file-input" accept=".fit,.tcx,.gpx" multiple>
 
       <div id="file-list"></div>
       <p class="progress-summary" id="progress-summary"></p>
@@ -396,8 +396,9 @@
       const form = new FormData();
       const activityDate = new Date(entry.file.lastModified);
       const name = activityDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const ext = entry.file.name.toLowerCase().split('.').pop();
       form.append('file', entry.file);
-      form.append('data_type', 'fit');
+      form.append('data_type', ext);
       form.append('name', name);
 
       let uploadRes;
@@ -479,8 +480,10 @@
 
     // --- File selection ---
     function addFiles(newFiles) {
+      const allowedExtensions = ['.fit', '.tcx', '.gpx'];
       for (const f of newFiles) {
-        if (f.name.toLowerCase().endsWith('.fit')) {
+        const name = f.name.toLowerCase();
+        if (allowedExtensions.some(ext => name.endsWith(ext))) {
           files.push({ file: f, status: 'pending', message: '', activityId: null });
         }
       }
